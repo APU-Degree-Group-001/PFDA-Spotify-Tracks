@@ -3,9 +3,12 @@
 # (A) Import CSV
 ###############################################################
 
-getwd() #check current working directory
+getwd() # check current working directory
+
+# For Shea Wen
 setwd("E:/Academics/APU/APD2F2606CS(AI)/Semester 1/Programming for Data Analysis/Assignment/CT127-3-2-PFDA Group 01/dataset")
-setwd("D:/APU/Degree/APD2F2606CS(AI)/SEM 1/Programming for Data Analysis/Assignment/dataset") # For Paureen
+# For Paureen
+setwd("D:/APU/Degree/APD2F2606CS(AI)/SEM 1/Programming for Data Analysis/Assignment/dataset")
 
 # install packages (one-time job)
 # library gone when power off, so need to load library at least one time in the script
@@ -300,9 +303,9 @@ spotify_tracks_unique %>%
 # (vii) Relationship between 2 variables - numeric vs numeric
 ggplot(spotify_tracks_unique, aes(x = energy, y = loudness)) +
   geom_point(alpha = 0.3, color = "#64B5CD") +
+  geom_smooth(method = "lm", color = "#C44E52") +
   labs(title = "Energy vs Loudness", x = "Energy", y = "Loudness (dB)")
 # TODO: correlation direction/strength visible?
-
 
 # (viii) Correlation matrix - numeric variables
 numeric_vars <- spotify_tracks_unique %>%
