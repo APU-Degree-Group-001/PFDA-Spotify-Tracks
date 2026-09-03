@@ -13,8 +13,9 @@ setwd("D:/APU/Degree/APD2F2606CS(AI)/SEM 1/Programming for Data Analysis/Assignm
 # install packages (one-time job)
 # library gone when power off, so need to load library at least one time in the script
 # install.packages("data.table") #fread() - fast csv import
-
 # install.packages("dplyr")
+# install.packages("hexbin")
+
 library(dplyr)
 
 #fread (data.table package) - faster, auto-detects separator/header
@@ -135,7 +136,10 @@ spotify_tracks_unique$explicit[is.na(spotify_tracks_unique$explicit)] <- FALSE
 
 colSums(is.na(spotify_tracks_unique))
 
-# (vi) Data Validation - check for out-of-range / invalid values
+###############################################################
+# (D) Data Validation
+###############################################################
+# (i) Check for Invalid Data
 validation_summary_before = data.frame(
   Column = c("popularity", "danceability", "energy", "valence", "speechiness",
              "acousticness", "instrumentalness", "liveness", "loudness",
@@ -165,7 +169,7 @@ validation_summary_before$Invalid_Percentage = round(
 View(validation_summary_before)
 
 
-# (vi) Data Validation - imputation for invalid values
+# (ii) Imputation for invalid values
 # Impute with median
 spotify_tracks_unique$popularity[spotify_tracks_unique$popularity < 0 | spotify_tracks_unique$popularity > 100] <- median(spotify_tracks_unique$popularity, na.rm = TRUE)
 spotify_tracks_unique$danceability[spotify_tracks_unique$danceability < 0 | spotify_tracks_unique$danceability > 1] <- median(spotify_tracks_unique$danceability, na.rm = TRUE)
@@ -215,7 +219,35 @@ View(validation_summary_after)
 
 
 ###############################################################
-# (D) Data Exploration
+# (E) Data Transformation
+###############################################################
+# (i) Convert duration from milliseconds to minutes
+spotify_tracks_unique <- spotify_tracks_unique %>%
+  mutate(duration_min = duration_ms / 60000)
+
+# (ii) Categorize duration into groups (for Objective 2)
+spotify_tracks_unique <- spotify_tracks_unique %>%
+  mutate(duration_category = case_when(
+    duration_min < 2.5 ~ "Short",
+    duration_min >= 2.5 & duration_min < 4.5 ~ "Medium",
+    duration_min >= 4.5 ~ "Long"
+  ))
+
+# (iii) Categorize tempo into groups (for Objective 2)
+spotify_tracks_unique <- spotify_tracks_unique %>%
+  mutate(tempo_category = case_when(
+    tempo < 90 ~ "Slow",
+    tempo >= 90 & tempo < 120 ~ "Moderate",
+    tempo >= 120 ~ "Fast"
+  ))
+
+# For checking
+table(spotify_tracks_unique$duration_category)
+table(spotify_tracks_unique$tempo_category)
+
+
+###############################################################
+# (F) Data Exploration
 ###############################################################
 library(ggplot2)
 library(dplyr)
@@ -382,7 +414,6 @@ ggplot(spotify_tracks_unique, aes(x = energy, y = loudness)) +
 # TODO: correlation direction/strength visible?
 
 # Energy vs Loudness - density view (shows concentration, dark = few tracks, yellow = many tracks)
-# install.packages("hexbin")
 ggplot(spotify_tracks_unique, aes(x = energy, y = loudness)) +
   geom_hex(bins = 40) +
   scale_fill_viridis_c() +
@@ -434,3 +465,4 @@ View(popularity_correlation)
 # +1: Perfect positive (One goes up, another one always goes up)
 # 0: No relationship
 # -1: Perfect negative (One goes up, another one always goes down)
+
