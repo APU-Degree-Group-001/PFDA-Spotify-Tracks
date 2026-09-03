@@ -238,7 +238,7 @@ spotify_tracks_unique %>%
 ggplot(spotify_tracks_unique, aes(x = popularity)) +
   geom_histogram(binwidth = 3, fill = "#4C72B0", color = "white") +
   labs(title = "Distribution of Track Popularity", x = "Popularity", y = "Frequency")
-11# TODO: skew direction, where most tracks concentrate
+# TODO: skew direction, where most tracks concentrate
 
 
 # (iii) Distribution of variables - numeric audio features
@@ -322,6 +322,10 @@ ggplot(spotify_tracks_unique, aes(x = factor(time_signature))) +
   labs(title = "Time Signature Distribution", x = "Time Signature", y = "Count")
 # TODO: most common time signature?
 
+ggplot(spotify_tracks_unique, aes(x = factor(key))) +
+  geom_bar(fill = "#8172B2") +
+  labs(title = "Key Distribution", x = "Key (0-11)", y = "Count")
+# TODO: which key is most/least common?
 
 # (vi) Boxplots - spread & outlier check with IQR
 # Popularity
@@ -377,6 +381,22 @@ ggplot(spotify_tracks_unique, aes(x = energy, y = loudness)) +
   labs(title = "Energy vs Loudness", x = "Energy", y = "Loudness (dB)")
 # TODO: correlation direction/strength visible?
 
+# Energy vs Loudness - density view (shows concentration, dark = few tracks, yellow = many tracks)
+# install.packages("hexbin")
+ggplot(spotify_tracks_unique, aes(x = energy, y = loudness)) +
+  geom_hex(bins = 40) +
+  scale_fill_viridis_c() +
+  labs(title = "Energy vs Loudness (Density)", x = "Energy", y = "Loudness (dB)", fill = "Count") +
+  theme_minimal()
+# TODO: where is the darkest/most concentrated region? does it match the scatter's trend line?
+
+# Energy vs Loudness (split by Mode)
+ggplot(spotify_tracks_unique, aes(x = energy, y = loudness)) +
+  geom_point(alpha = 0.2, color = "#64B5CD") +
+  facet_wrap(~ factor(mode, labels = c("Minor", "Major"))) +
+  labs(title = "Energy vs Loudness by Mode")
+# TODO: does the relationship look similar for Minor vs Major, or different?
+
 
 # (viii) Correlation matrix - numeric variables
 numeric_vars <- spotify_tracks_unique %>%
@@ -386,8 +406,31 @@ numeric_vars <- spotify_tracks_unique %>%
 
 cor_matrix <- cor(numeric_vars, use = "complete.obs")
 cor_matrix
-# TODO: which variables correlate most with popularity?
+
+# Table view - correlation of each variable with popularity, sorted highest to lowest
+popularity_correlation = data.frame(
+  Variable = c("danceability", "energy", "loudness", "speechiness",
+               "acousticness", "instrumentalness", "liveness", "valence",
+               "tempo", "duration_ms"),
+  Correlation_with_Popularity = c(
+    cor_matrix["popularity", "danceability"],
+    cor_matrix["popularity", "energy"],
+    cor_matrix["popularity", "loudness"],
+    cor_matrix["popularity", "speechiness"],
+    cor_matrix["popularity", "acousticness"],
+    cor_matrix["popularity", "instrumentalness"],
+    cor_matrix["popularity", "liveness"],
+    cor_matrix["popularity", "valence"],
+    cor_matrix["popularity", "tempo"],
+    cor_matrix["popularity", "duration_ms"]
+  )
+)
+
+popularity_correlation$Correlation_with_Popularity = round(popularity_correlation$Correlation_with_Popularity, 3)
+popularity_correlation = popularity_correlation[order(-popularity_correlation$Correlation_with_Popularity), ]
+
+View(popularity_correlation)
+# TODO: which variables correlate most with popularity (both positive and negative)?
 # +1: Perfect positive (One goes up, another one always goes up)
 # 0: No relationship
 # -1: Perfect negative (One goes up, another one always goes down)
-
