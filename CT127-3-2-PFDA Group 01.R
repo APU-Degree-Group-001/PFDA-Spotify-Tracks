@@ -139,7 +139,7 @@ colSums(is.na(spotify_tracks_unique))
 validation_summary_before = data.frame(
   Column = c("popularity", "danceability", "energy", "valence", "speechiness",
              "acousticness", "instrumentalness", "liveness", "loudness",
-             "tempo", "duration_ms"),
+             "tempo", "duration_ms", "mode", "key", "time_signature"),
   Invalid_Count = c(
     sum(spotify_tracks_unique$popularity < 0 | spotify_tracks_unique$popularity > 100, na.rm = TRUE),
     sum(spotify_tracks_unique$danceability < 0 | spotify_tracks_unique$danceability > 1, na.rm = TRUE),
@@ -151,7 +151,10 @@ validation_summary_before = data.frame(
     sum(spotify_tracks_unique$liveness < 0 | spotify_tracks_unique$liveness > 1, na.rm = TRUE),
     sum(spotify_tracks_unique$loudness < -60 | spotify_tracks_unique$loudness > 0, na.rm = TRUE),
     sum(spotify_tracks_unique$tempo <= 0, na.rm = TRUE),
-    sum(spotify_tracks_unique$duration_ms <= 0, na.rm = TRUE)
+    sum(spotify_tracks_unique$duration_ms <= 0, na.rm = TRUE),
+    sum(spotify_tracks_unique$mode != 0 & spotify_tracks_unique$mode != 1, na.rm = TRUE),
+    sum(spotify_tracks_unique$key < 0 | spotify_tracks_unique$key > 11, na.rm = TRUE),
+    sum(spotify_tracks_unique$time_signature < 3 | spotify_tracks_unique$time_signature > 7, na.rm = TRUE)
   )
 )
 
@@ -175,12 +178,21 @@ spotify_tracks_unique$liveness[spotify_tracks_unique$liveness < 0 | spotify_trac
 spotify_tracks_unique$loudness[spotify_tracks_unique$loudness < -60 | spotify_tracks_unique$loudness > 0] <- median(spotify_tracks_unique$loudness, na.rm = TRUE)
 spotify_tracks_unique$tempo[spotify_tracks_unique$tempo <= 0] <- median(spotify_tracks_unique$tempo, na.rm = TRUE)
 spotify_tracks_unique$duration_ms[spotify_tracks_unique$duration_ms <= 0] <- median(spotify_tracks_unique$duration_ms, na.rm = TRUE)
+spotify_tracks_unique$key[spotify_tracks_unique$key < 0 | spotify_tracks_unique$key > 11] <- median(spotify_tracks_unique$key, na.rm = TRUE)
+spotify_tracks_unique$time_signature[spotify_tracks_unique$time_signature < 3 | spotify_tracks_unique$time_signature > 7] <- median(spotify_tracks_unique$time_signature, na.rm = TRUE)
+
+# Impute with mode
+count_mode_0 <- sum(spotify_tracks_unique$mode == 0, na.rm = TRUE)
+count_mode_1 <- sum(spotify_tracks_unique$mode == 1, na.rm = TRUE)
+count_mode_0
+count_mode_1 # mode = 1 is more common
+spotify_tracks_unique$mode[spotify_tracks_unique$mode != 0 & spotify_tracks_unique$mode != 1] <- 1
 
 # Re-check for invalid values after imputation
 validation_summary_after = data.frame(
   Column = c("popularity", "danceability", "energy", "valence", "speechiness",
              "acousticness", "instrumentalness", "liveness", "loudness",
-             "tempo", "duration_ms"),
+             "tempo", "duration_ms", "mode", "key", "time_signature"),
   Invalid_Count = c(
     sum(spotify_tracks_unique$popularity < 0 | spotify_tracks_unique$popularity > 100, na.rm = TRUE),
     sum(spotify_tracks_unique$danceability < 0 | spotify_tracks_unique$danceability > 1, na.rm = TRUE),
@@ -192,7 +204,10 @@ validation_summary_after = data.frame(
     sum(spotify_tracks_unique$liveness < 0 | spotify_tracks_unique$liveness > 1, na.rm = TRUE),
     sum(spotify_tracks_unique$loudness < -60 | spotify_tracks_unique$loudness > 0, na.rm = TRUE),
     sum(spotify_tracks_unique$tempo <= 0, na.rm = TRUE),
-    sum(spotify_tracks_unique$duration_ms <= 0, na.rm = TRUE)
+    sum(spotify_tracks_unique$duration_ms <= 0, na.rm = TRUE),
+    sum(spotify_tracks_unique$mode != 0 & spotify_tracks_unique$mode != 1, na.rm = TRUE),
+    sum(spotify_tracks_unique$key < 0 | spotify_tracks_unique$key > 11, na.rm = TRUE),
+    sum(spotify_tracks_unique$time_signature < 3 | spotify_tracks_unique$time_signature > 7, na.rm = TRUE)
   )
 )
 
@@ -362,6 +377,7 @@ ggplot(spotify_tracks_unique, aes(x = energy, y = loudness)) +
   labs(title = "Energy vs Loudness", x = "Energy", y = "Loudness (dB)")
 # TODO: correlation direction/strength visible?
 
+
 # (viii) Correlation matrix - numeric variables
 numeric_vars <- spotify_tracks_unique %>%
   select(popularity, danceability, energy, loudness, speechiness,
@@ -374,3 +390,4 @@ cor_matrix
 # +1: Perfect positive (One goes up, another one always goes up)
 # 0: No relationship
 # -1: Perfect negative (One goes up, another one always goes down)
+
