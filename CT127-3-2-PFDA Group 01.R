@@ -15,6 +15,7 @@ setwd("D:/APU/Degree/APD2F2606CS(AI)/SEM 1/Programming for Data Analysis/Assignm
 # install.packages("data.table") #fread() - fast csv import
 # install.packages("dplyr")
 # install.packages("hexbin")
+# install.packages("corrplot")
 
 library(dplyr)
 
@@ -115,25 +116,32 @@ spotify_tracks_unique$popularity[is.na(spotify_tracks_unique$popularity)] <- med
 spotify_tracks_unique$duration_ms[is.na(spotify_tracks_unique$duration_ms)] <- median(spotify_tracks_unique$duration_ms, na.rm = TRUE)
 spotify_tracks_unique$danceability[is.na(spotify_tracks_unique$danceability)] <- median(spotify_tracks_unique$danceability, na.rm = TRUE)
 spotify_tracks_unique$energy[is.na(spotify_tracks_unique$energy)] <- median(spotify_tracks_unique$energy, na.rm = TRUE)
-spotify_tracks_unique$key[is.na(spotify_tracks_unique$key)] <- median(spotify_tracks_unique$key, na.rm = TRUE)
 spotify_tracks_unique$loudness[is.na(spotify_tracks_unique$loudness)] <- median(spotify_tracks_unique$loudness, na.rm = TRUE)
-spotify_tracks_unique$mode[is.na(spotify_tracks_unique$mode)] <- median(spotify_tracks_unique$mode, na.rm = TRUE)
 spotify_tracks_unique$speechiness[is.na(spotify_tracks_unique$speechiness)] <- median(spotify_tracks_unique$speechiness, na.rm = TRUE)
 spotify_tracks_unique$acousticness[is.na(spotify_tracks_unique$acousticness)] <- median(spotify_tracks_unique$acousticness, na.rm = TRUE)
 spotify_tracks_unique$instrumentalness[is.na(spotify_tracks_unique$instrumentalness)] <- median(spotify_tracks_unique$instrumentalness, na.rm = TRUE)
 spotify_tracks_unique$liveness[is.na(spotify_tracks_unique$liveness)] <- median(spotify_tracks_unique$liveness, na.rm = TRUE)
 spotify_tracks_unique$valence[is.na(spotify_tracks_unique$valence)] <- median(spotify_tracks_unique$valence, na.rm = TRUE)
 spotify_tracks_unique$tempo[is.na(spotify_tracks_unique$tempo)] <- median(spotify_tracks_unique$tempo, na.rm = TRUE)
-spotify_tracks_unique$time_signature[is.na(spotify_tracks_unique$time_signature)] <- median(spotify_tracks_unique$time_signature, na.rm = TRUE)
 
 # Impute with mode
+count_mode_0 <- sum(spotify_tracks_unique$mode == 0, na.rm = TRUE)
+count_mode_1 <- sum(spotify_tracks_unique$mode == 1, na.rm = TRUE)
+count_mode_0 # 41070
+count_mode_1 # 72314
+spotify_tracks_unique$mode[is.na(spotify_tracks_unique$mode)] <- 1
+
 count_false <- sum(spotify_tracks_unique$explicit == FALSE, na.rm = TRUE)
 count_true <- sum(spotify_tracks_unique$explicit == TRUE, na.rm = TRUE)
-count_false
-count_true
-
+count_false # 103698
+count_true # 9704
 spotify_tracks_unique$explicit[is.na(spotify_tracks_unique$explicit)] <- FALSE
 
+table(spotify_tracks_unique$time_signature) # 4 - most (101328)
+table(spotify_tracks_unique$key) # 7 - most (13187)
+
+spotify_tracks_unique$time_signature[is.na(spotify_tracks_unique$time_signature)] <- 4
+spotify_tracks_unique$key[is.na(spotify_tracks_unique$key)] <- 7
 colSums(is.na(spotify_tracks_unique))
 
 ###############################################################
@@ -182,8 +190,6 @@ spotify_tracks_unique$liveness[spotify_tracks_unique$liveness < 0 | spotify_trac
 spotify_tracks_unique$loudness[spotify_tracks_unique$loudness < -60 | spotify_tracks_unique$loudness > 0] <- median(spotify_tracks_unique$loudness, na.rm = TRUE)
 spotify_tracks_unique$tempo[spotify_tracks_unique$tempo <= 0] <- median(spotify_tracks_unique$tempo, na.rm = TRUE)
 spotify_tracks_unique$duration_ms[spotify_tracks_unique$duration_ms <= 0] <- median(spotify_tracks_unique$duration_ms, na.rm = TRUE)
-spotify_tracks_unique$key[spotify_tracks_unique$key < 0 | spotify_tracks_unique$key > 11] <- median(spotify_tracks_unique$key, na.rm = TRUE)
-spotify_tracks_unique$time_signature[spotify_tracks_unique$time_signature < 3 | spotify_tracks_unique$time_signature > 7] <- median(spotify_tracks_unique$time_signature, na.rm = TRUE)
 
 # Impute with mode
 count_mode_0 <- sum(spotify_tracks_unique$mode == 0, na.rm = TRUE)
@@ -191,6 +197,10 @@ count_mode_1 <- sum(spotify_tracks_unique$mode == 1, na.rm = TRUE)
 count_mode_0
 count_mode_1 # mode = 1 is more common
 spotify_tracks_unique$mode[spotify_tracks_unique$mode != 0 & spotify_tracks_unique$mode != 1] <- 1
+
+spotify_tracks_unique$key[spotify_tracks_unique$key < 0 | spotify_tracks_unique$key > 11] <- 7          # 7 - most
+spotify_tracks_unique$time_signature[spotify_tracks_unique$time_signature < 3 | spotify_tracks_unique$time_signature > 7] <- 4   # 4 - most
+
 
 # Re-check for invalid values after imputation
 validation_summary_after = data.frame(
@@ -466,3 +476,369 @@ View(popularity_correlation)
 # 0: No relationship
 # -1: Perfect negative (One goes up, another one always goes down)
 
+
+###############################################################
+# (G) Data Analysis
+###############################################################
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+###############################################################
+# Objective 01: Chua Yexun
+# To examine the relationship between genre and selected musical characteristics and Spotify track popularity.
+###############################################################
+# 1.1 Average popularity by genre
+genre_stats <- spotify_tracks_unique %>%
+  group_by(track_genre) %>%  
+  # n() - calculate the number of tracks in each genre
+  summarise(n = n(), mean_popularity = mean(popularity, na.rm = TRUE)) %>% 
+  arrange(desc(mean_popularity))
+
+top10_genre_stats <- head(genre_stats, 10)
+
+ggplot(top10_genre_stats, aes(x = reorder(track_genre, mean_popularity), y = mean_popularity)) +
+  # reorder() = sort by mean_popularity (default = alphabetically)
+  geom_bar(stat = "identity", fill = "#4C72B0") +
+  coord_flip() +
+  labs(title = "Top 10 Genres by Average Popularity", x = "Genre", y = "Average Popularity")
+# TODO: which genres have the highest/lowest average popularity
+
+# Simple test to check whether mean popularity differs across genres
+anova_genre <- aov(popularity ~ track_genre, data = spotify_tracks_unique)
+summary(anova_genre)
+# p < 0.05 → significant difference between at least some group means
+# p ≥ 0.05 → insufficient evidence that the group means differ
+
+
+# 1.2 Correlation + Scatterplot: musical characteristics vs popularity
+cor.test(spotify_tracks_unique$danceability, spotify_tracks_unique$popularity, method = "pearson")
+
+ggplot(spotify_tracks_unique, aes(x = danceability, y = popularity)) +
+  geom_point(alpha = 0.2, color = "#4C72B0") +
+  geom_smooth(method = "lm", color = "#C44E52") +
+  labs(title = "Danceability vs Popularity", x = "Danceability", y = "Popularity")
+# TODO: check the correlation number, then confirm visually with the trend line
+
+cor.test(spotify_tracks_unique$energy, spotify_tracks_unique$popularity)
+
+ggplot(spotify_tracks_unique, aes(x = energy, y = popularity)) +
+  geom_point(alpha = 0.2, color = "#55A868") +
+  geom_smooth(method = "lm", color = "#C44E52") +
+  labs(title = "Energy vs Popularity", x = "Energy", y = "Popularity")
+# TODO: check the correlation number, then confirm visually with the trend line
+
+
+# 1.3 Popularity spread across top 10 genres
+genre_subset <- spotify_tracks_unique %>%
+  filter(track_genre %in% top10_genre_stats$track_genre)
+
+ggplot(genre_subset, aes(x = reorder(track_genre, popularity, median), y = popularity)) +
+  geom_boxplot(fill = "#64B5CD") +
+  coord_flip() +
+  labs(title = "Popularity Spread by Top 10 Genres", x = "Genre", y = "Popularity")
+# middle line = median popularity per genre
+# taller box = popularity varies more within that genre
+
+
+# 1.4 Danceability vs Popularity, split by genre
+top5_genre_names <- head(top10_genre_stats$track_genre, 5)
+
+genre_subset %>%
+  filter(track_genre %in% top5_genre_names) %>%
+  ggplot(aes(x = danceability, y = popularity)) +
+  geom_point(alpha = 0.2, color = "#4C72B0") +
+  geom_smooth(method = "lm", color = "#C44E52") +
+  facet_wrap(~ track_genre) +
+  labs(title = "Danceability vs Popularity — Top 5 Genres", x = "Danceability", y = "Popularity")
+# TODO: does the danceability-popularity trend line look the same across genres, or does it slope differently (or even flip direction) for some?
+
+
+###############################################################
+# Objective 02: Lim Chee Xuan
+# To investigate the relationship between the track duration and temporal characteristic and Spotify track popularity.
+###############################################################
+# factor - to arrange in the order we want
+spotify_tracks_unique <- spotify_tracks_unique %>%
+  mutate(
+    duration_category = factor(duration_category, levels = c("Short", "Medium", "Long")),
+    tempo_category = factor(tempo_category, levels = c("Slow", "Moderate", "Fast"))
+  )
+
+
+# 2.1  Correlation + Scatterplot: duration vs popularity
+cor.test(spotify_tracks_unique$duration_min, spotify_tracks_unique$popularity)
+
+ggplot(spotify_tracks_unique, aes(x = duration_min, y = popularity)) +
+  geom_point(alpha = 0.2, color = "#4C72B0") +
+  geom_smooth(method = "lm", color = "#C44E52") +
+  labs(title = "Track Duration vs Popularity", x = "Duration (minutes)", y = "Popularity")
+# TODO: check the correlation number, then confirm visually with the trend line
+
+
+# 2.2 Correlation + Scatterplot: tempo vs popularity
+cor.test(spotify_tracks_unique$tempo, spotify_tracks_unique$popularity)
+
+ggplot(spotify_tracks_unique, aes(x = tempo, y = popularity)) +
+  geom_point(alpha = 0.2, color = "#64B5CD") +
+  geom_smooth(method = "lm", color = "#C44E52") +
+  labs(title = "Tempo vs Popularity", x = "Tempo (BPM)", y = "Popularity")
+# TODO: check the correlation number, then confirm visually with the trend line
+
+
+# 2.3 Descriptive stats + Bar chart: popularity by duration_category
+spotify_tracks_unique %>%
+  group_by(duration_category) %>%
+  summarise(n = n(), mean_popularity = mean(popularity, na.rm = TRUE))
+
+spotify_tracks_unique %>%
+  group_by(duration_category) %>%
+  summarise(mean_popularity = mean(popularity, na.rm = TRUE)) %>%
+  ggplot(aes(x = duration_category, y = mean_popularity)) +
+  geom_bar(stat = "identity", fill = "#55A868") +
+  labs(title = "Average Popularity by Duration Category", x = "Duration Category", y = "Average Popularity")
+# TODO: do Short/Medium/Long tracks differ in average popularity?
+
+# check if the duration groups are REALLY different, not just by eye
+anova_duration <- aov(popularity ~ duration_category, data = spotify_tracks_unique)
+summary(anova_duration)
+# p < 0.05 → significant difference between at least some group means
+# p ≥ 0.05 → insufficient evidence that the group means differ
+# duration_min correlation in 2.1 is close to 0, but this test
+# will still be significant - meaning "Medium" length tracks do better
+# than both "Short" and "Long", it's just not a straight line.
+
+
+# 2.4 Descriptive stats + Bar chart: popularity by tempo_category
+spotify_tracks_unique %>%
+  group_by(tempo_category) %>%
+  summarise(n = n(), mean_popularity = mean(popularity, na.rm = TRUE))
+
+spotify_tracks_unique %>%
+  group_by(tempo_category) %>%
+  summarise(mean_popularity = mean(popularity, na.rm = TRUE)) %>%
+  ggplot(aes(x = tempo_category, y = mean_popularity)) +
+  geom_bar(stat = "identity", fill = "#DD8452") +
+  labs(title = "Average Popularity by Tempo Category", x = "Tempo Category", y = "Average Popularity")
+# TODO: do Slow/Moderate/Fast tracks differ in average popularity?
+
+anova_tempo <- aov(popularity ~ tempo_category, data = spotify_tracks_unique)
+summary(anova_tempo)
+# p < 0.05 → significant difference between at least some group means
+# p ≥ 0.05 → insufficient evidence that the group means differ
+
+anova_interaction <- aov(popularity ~ duration_category * tempo_category,
+                         data = spotify_tracks_unique)
+summary(anova_interaction)
+
+
+###############################################################
+# Objective 03: Paureen Tan Nie Nie
+# To determine the relationship between the artist-related and track-related characteristics and Spotify track popularity.
+###############################################################
+# 3.1 Descriptive stats + Bar chart: top 10 artists by average popularity
+artist_stats <- spotify_tracks_unique %>%
+  separate_rows(artists, sep = ";\\s*|,\\s*") %>%   # handles both ; and , separators
+  group_by(artists) %>%
+  summarise(
+    n_tracks = n(),
+    avg_popularity = mean(popularity, na.rm = TRUE),
+    sd_popularity = sd(popularity, na.rm = TRUE),
+    median_popularity = median(popularity, na.rm = TRUE)
+  ) %>%
+  filter(n_tracks >= 5) %>%
+  arrange(desc(avg_popularity))
+
+top10_artists <- head(artist_stats, 10)
+
+ggplot(top10_artists, aes(x = reorder(artists, avg_popularity), y = avg_popularity)) +
+  geom_bar(stat = "identity", fill = "#8172B2") +
+  geom_errorbar(aes(ymin = avg_popularity - sd_popularity, ymax = avg_popularity + sd_popularity),
+                width = 0.3, color = "black") +
+  coord_flip() +
+  labs(
+    title = "Top 10 Artists by Average Popularity (min. 5 tracks, collabs credited)",
+    subtitle = "Error bars show \u00b11 SD",
+    x = "Artist", y = "Average Popularity"
+  ) +
+  theme_minimal()
+# TODO: which artists have the highest average popularity
+# SD error bars show whether the artist is consistently popular or has mixed tracks
+
+
+# 3.2 Comparison + Bar chart: explicit vs non-explicit tracks
+explicit_stats <- spotify_tracks_unique %>%
+  group_by(explicit) %>%
+  summarise(n = n(), mean_popularity = mean(popularity, na.rm = TRUE), sd_popularity = sd(popularity, na.rm = TRUE))
+
+t_explicit <- t.test(popularity ~ explicit, data = spotify_tracks_unique)
+t_explicit
+
+# Cohen's d (effect size) — how big the gap is, not just whether it's real
+pooled_sd <- sqrt(((explicit_stats$n[1]-1)*explicit_stats$sd_popularity[1]^2 +
+                     (explicit_stats$n[2]-1)*explicit_stats$sd_popularity[2]^2) /
+                    (sum(explicit_stats$n) - 2))
+cohens_d_explicit <- diff(explicit_stats$mean_popularity) / pooled_sd
+cohens_d_explicit
+# |d| ~0.2 = small, ~0.5 = medium, ~0.8 = large effect (Cohen's convention)
+
+# TODO: t-test p-value < 0.05 -> difference is statistically significant,
+# not due to random chance. Check mean values to see which group is higher and by how much.
+
+
+# 3.3 Comparison + Bar chart: major vs minor mode
+mode_stats <- spotify_tracks_unique %>%
+  group_by(mode) %>%
+  summarise(n = n(), mean_popularity = mean(popularity, na.rm = TRUE),
+            sd_popularity = sd(popularity, na.rm = TRUE))
+
+t_mode <- t.test(popularity ~ mode, data = spotify_tracks_unique)
+t_mode
+
+pooled_sd_mode <- sqrt(((mode_stats$n[1]-1)*mode_stats$sd_popularity[1]^2 +
+                          (mode_stats$n[2]-1)*mode_stats$sd_popularity[2]^2) /
+                         (sum(mode_stats$n) - 2))
+cohens_d_mode <- diff(mode_stats$mean_popularity) / pooled_sd_mode
+cohens_d_mode
+# |d| ~0.2 = small, ~0.5 = medium, ~0.8 = large effect
+
+# TODO: t-test p-value < 0.05 -> difference is statistically significant.
+# Major mode (1) = brighter/happier sound; Minor mode (0) = darker/sadder sound.
+# Check which mode has higher average popularity.
+
+
+###############################################################
+# Objective 04: Phang Shea Wen
+# To discover the relationship between selected perceptual audio characteristics and Spotify track popularity.
+###############################################################
+library(tidyr)
+
+# 4.1 Correlation table + Bar chart: perceptual features vs popularity
+perceptual_vars <- c("danceability", "energy", "loudness", "valence",
+                     "acousticness", "instrumentalness", "liveness", "speechiness")
+
+perceptual_corr <- data.frame(
+  Feature = perceptual_vars,
+  Correlation_with_Popularity = sapply(perceptual_vars, function(v) {
+    cor(spotify_tracks_unique[[v]], spotify_tracks_unique$popularity, use = "complete.obs")
+  }),
+  P_Value = sapply(perceptual_vars, function(v) {
+    cor.test(spotify_tracks_unique[[v]], spotify_tracks_unique$popularity)$p.value
+  })
+)
+perceptual_corr$Correlation_with_Popularity <- round(perceptual_corr$Correlation_with_Popularity, 3)
+perceptual_corr$P_Value <- round(perceptual_corr$P_Value, 4)
+perceptual_corr$Significant <- ifelse(perceptual_corr$P_Value < 0.05, "Yes", "No")
+perceptual_corr <- perceptual_corr[order(-perceptual_corr$Correlation_with_Popularity), ]
+perceptual_corr
+
+ggplot(perceptual_corr, aes(x = reorder(Feature, Correlation_with_Popularity),
+                            y = Correlation_with_Popularity,
+                            fill = Correlation_with_Popularity > 0)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = Correlation_with_Popularity),
+            hjust = ifelse(perceptual_corr$Correlation_with_Popularity > 0, -0.1, 1.1), size = 3.5) +
+  scale_fill_manual(values = c("TRUE" = "#55A868", "FALSE" = "#C44E52"),
+                    labels = c("Negative", "Positive"), name = "Direction") +
+  coord_flip() +
+  labs(title = "Correlation of Perceptual Features with Popularity",
+       subtitle = "Green = positive relationship, Red = negative relationship",
+       x = "Feature", y = "Correlation (r)") +
+  theme_minimal()
+
+# TODO: ranks every perceptual feature by how strongly it
+# relates to popularity. Green bars = higher feature -> more popular.
+# Red bars = higher feature -> less popular.
+
+
+## 4.2 Scatterplot: strongest-correlated feature vs popularity
+
+# Identify strongest feature automatically from perceptual_corr
+strongest_feature <- perceptual_corr$Feature[which.max(abs(perceptual_corr$Correlation_with_Popularity))]
+cat("Strongest correlated feature:", strongest_feature, "\n")   # NEW: prints which feature
+
+# Scatterplot for strongest feature
+ggplot(spotify_tracks_unique, aes(x = .data[[strongest_feature]], y = popularity)) +
+  geom_point(alpha = 0.2, color = "#64B5CD") +
+  geom_smooth(method = "lm", color = "#C44E52") +
+  labs(
+    title    = paste(strongest_feature, "vs Popularity"),
+    subtitle = paste("r =", perceptual_corr$Correlation_with_Popularity[
+      perceptual_corr$Feature == strongest_feature]),
+    x        = strongest_feature,
+    y        = "Popularity"
+  ) +
+  theme_minimal()
+
+weakest_feature <- perceptual_corr$Feature[which.min(abs(perceptual_corr$Correlation_with_Popularity))]
+cat("Weakest correlated feature:", weakest_feature, "\n")
+
+ggplot(spotify_tracks_unique, aes(x = .data[[weakest_feature]], y = popularity)) +
+  geom_point(alpha = 0.2, color = "#8172B2") +
+  geom_smooth(method = "lm", color = "#C44E52") +
+  labs(
+    title    = paste(weakest_feature, "vs Popularity (Weakest Correlation)"),
+    subtitle = paste("r =", perceptual_corr$Correlation_with_Popularity[
+      perceptual_corr$Feature == weakest_feature]),
+    x        = weakest_feature,
+    y        = "Popularity"
+  ) +
+  theme_minimal()
+# TODO: visually confirms the correlation direction & strength.
+# Steep trend line = stronger relationship, flat line = weak/no relationship.
+
+
+# 4.3 High vs Low popularity group comparison + Bar chart
+p25 <- quantile(spotify_tracks_unique$popularity, 0.25)
+p75 <- quantile(spotify_tracks_unique$popularity, 0.75)
+
+grouped <- spotify_tracks_unique %>%
+  filter(popularity <= p25 | popularity >= p75) %>%
+  mutate(pop_group = ifelse(popularity >= p75, "High Popularity", "Low Popularity"))
+
+group_compare <- grouped %>%
+  group_by(pop_group) %>%
+  summarise(
+    n = n(),
+    mean_danceability = mean(danceability),
+    mean_energy = mean(energy),
+    mean_valence = mean(valence),
+    mean_acousticness = mean(acousticness),
+    mean_instrumentalness = mean(instrumentalness),
+    mean_loudness = mean(loudness),
+    mean_liveness = mean(liveness)
+  )
+group_compare
+
+features_to_test <- c("danceability", "energy", "valence", "acousticness", "instrumentalness", "loudness", "liveness")
+
+ttest_results <- data.frame(
+  Feature = features_to_test,
+  P_Value = sapply(features_to_test, function(f) t.test(grouped[[f]] ~ grouped$pop_group)$p.value),
+  Mean_High = sapply(features_to_test, function(f) round(mean(grouped[[f]][grouped$pop_group == "High Popularity"]), 3)),
+  Mean_Low = sapply(features_to_test, function(f) round(mean(grouped[[f]][grouped$pop_group == "Low Popularity"]), 3))
+)
+ttest_results$Significant <- ifelse(ttest_results$P_Value < 0.05, "Yes", "No")
+ttest_results$P_Value <- round(ttest_results$P_Value, 4)
+ttest_results
+
+# FIX: pivot_longer() needs the "tidyr" package - add this ONE line
+# near the top of your script (with your other library() lines)
+# library(tidyr)
+group_compare_long <- group_compare %>%
+  select(-n) %>%
+  pivot_longer(cols = -pop_group, names_to = "feature", values_to = "avg_value") %>%
+  mutate(feature = gsub("mean_", "", feature))
+
+ggplot(group_compare_long, aes(x = feature, y = avg_value, fill = pop_group)) +
+  geom_bar(stat = "identity", position = "dodge", alpha = 0.85) +
+  geom_text(aes(label = round(avg_value, 2)), position = position_dodge(width = 0.9), vjust = -0.3, size = 3) +
+  scale_fill_manual(values = c("High Popularity" = "#55A868", "Low Popularity" = "#C44E52")) +
+  coord_flip() +
+  labs(title = "High vs Low Popularity: Average Feature Values",
+       subtitle = "Comparing top 25% vs bottom 25% popularity tracks",
+       x = "Feature", y = "Average Value", fill = "Group") +
+  theme_minimal()
+
+# TODO: side-by-side bars per feature. A clear height difference
+# between green (High) and red (Low) = that feature matters for popularity.
+# Bars roughly same height = feature has little impact on popularity.
