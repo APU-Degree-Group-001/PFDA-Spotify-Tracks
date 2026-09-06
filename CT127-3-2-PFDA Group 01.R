@@ -977,6 +977,11 @@ corrplot(corr_matrix_m3, method = "color", type = "upper", addCoef.col = "black"
 
 
 # (Additional/Advanced) Multiple Linear Regression + VIF + Diagnostics
+# install.packages("rbibutils")   # force R to update to 2.4+
+install.packages("Deriv")
+install.packages("doBy")
+install.packages("pbkrtest")
+install.packages("car")
 library(car)
 vif(lm_flat)
 # TODO: checks if features overlap too much with each other
