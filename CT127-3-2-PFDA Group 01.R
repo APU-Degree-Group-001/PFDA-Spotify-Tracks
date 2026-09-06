@@ -360,7 +360,6 @@ View(popularity_correlation)
 # - Overall: none stand out as a meaningful individual predictor of popularity
 
 
-# !!!! W: Analysis 我待会儿看~~
 ###############################################################
 # Objective 01: Chua Yexun
 # Explore Genre & Musical Characteristics
@@ -769,6 +768,7 @@ spotify_tracks_unique %>%
 # To determine the relationship between the artist-related and track-related characteristics and Spotify track popularity.
 # Variables: artists, album_name, track_name, popularity
 ###############################################################
+# install.packages("car")
 library(car)
 # (Additional/Advanced) Create artist_count & collaboration_status ----
 # strsplit(artists, ";") breaks each artist string apart at every ";"
@@ -852,8 +852,9 @@ spotify_tracks_unique %>%
   )
 # TODO: typical (average) level and spread of each perceptual feature
 
-  
 # 4.2 Correlation Analysis - each feature vs popularity
+
+# (a) Pooled correlation across all genres
 perceptual_vars <- c("danceability", "energy", "loudness", "valence")
 
 perceptual_corr <- data.frame(
@@ -873,9 +874,92 @@ ggplot(perceptual_corr, aes(x = reorder(Feature, Correlation_with_Popularity),
   coord_flip() +
   labs(title = "Correlation of Audio Features with Popularity", x = "Feature", y = "Correlation")
 # TODO: which of the 4 features relates most strongly (+/-) to popularity
+# All four pooled correlations are weak (|r| < 0.1) - none is individually
+# a meaningful predictor of popularity on its own.
+
+
+# (b) Genre-conditional correlation
+# Rationale: popularity is driven mostly by factors outside this dataset
+# (artist fame, marketing, playlist placement), so a pooled correlation
+# across all genres can mask a real relationship that only exists WITHIN
+# a genre. Restrict to genres with enough tracks to be reliable (reuse
+# top_genres from Objective 01).
+
+genre_subset <- spotify_tracks_unique %>%
+  filter(track_genre %in% top_genres$track_genre)
+
+genre_corr <- genre_subset %>%
+  group_by(track_genre) %>%
+  summarise(
+    n                = n(),
+    cor_danceability = round(cor(danceability, popularity, use = "complete.obs"), 3),
+    cor_energy       = round(cor(energy, popularity, use = "complete.obs"), 3),
+    cor_loudness     = round(cor(loudness, popularity, use = "complete.obs"), 3),
+    cor_valence      = round(cor(valence, popularity, use = "complete.obs"), 3),
+    .groups = "drop"
+  )
+
+print(genre_corr)
+# TODO: compare each column's spread across genres against the pooled
+# value above - do any genres show a noticeably stronger (+/-) correlation
+# than the ~0.03-0.05 pooled figures?
+# Several genres show much stronger correlations than the pooled figures
+# (e.g. funk danceability = 0.326, disco loudness = -0.263), and signs
+# sometimes flip across genres (e.g. loudness: -0.263 in disco vs +0.208
+# in british) - suggesting the pooled correlation was masking/canceling
+# genre-specific effects rather than reflecting a true absence of relationship.
+
+# (c) Does allowing slopes to vary by genre improve the model？
+# Flat model (same as pooled correlation implies: one slope for everyone)
+lm_flat <- lm(popularity ~ danceability + energy + loudness + valence,
+              data = genre_subset)
+
+# Interaction model: each feature gets its own slope per genre
+lm_inter <- lm(popularity ~ (danceability + energy + loudness + valence) * track_genre,
+               data = genre_subset)
+
+# F-test: is the improvement in fit statistically significant?
+anova(lm_flat, lm_inter)
+
+# Effect size: HOW MUCH does it actually improve? (don't stop at the p-value -
+# with n ~ 114k, even trivial improvements will be "significant")
+r2_flat  <- summary(lm_flat)$adj.r.squared
+r2_inter <- summary(lm_inter)$adj.r.squared
+cat("Adjusted R2 (flat):       ", round(r2_flat, 4), "\n")
+cat("Adjusted R2 (interaction):", round(r2_inter, 4), "\n")
+cat("R2 improvement:           ", round(r2_inter - r2_flat, 4), "\n")
+# TODO: if the improvement is small (e.g. < 0.01-0.02) even though the
+# F-test is significant, report it as "statistically detectable but
+# practically small" rather than implying a strong genre-specific effect
+# Adjusted R2 improved from 0.025 (flat) to 0.211 (interaction), F(45, 9950)
+# = 53.3, p < .001 - a substantial improvement, not just statistically
+# significant noise from a large n.
+
+# (d) per-genre slopes for whichever feature(s) looked genre-dependent in (b)/(c)
+# install.packages("emmeans")
+library(emmeans)
+
+danceability_slopes <- emtrends(lm_inter, ~ track_genre, var = "danceability")
+danceability_slope_table <- as.data.frame(danceability_slopes)[, c("track_genre", "danceability.trend")]
+colnames(danceability_slope_table) <- c("Genre", "Danceability_Slope")
+danceability_slope_table$Danceability_Slope <- round(danceability_slope_table$Danceability_Slope, 3)
+print(danceability_slope_table)
+
+
+# (e) Visualize the strongest genre-dependent feature
+# Swap "danceability" below for whichever feature (b)/(d) flagged as most
+# genre-dependent. Only plot one feature at a time - facets get unreadable
+# with more.
+ggplot(genre_subset, aes(x = danceability, y = popularity)) +
+  geom_point(alpha = 0.15) +
+  geom_smooth(method = "lm", se = TRUE, color = "red") +
+  facet_wrap(~ track_genre, scales = "free_y") +
+  labs(title = "Danceability vs Popularity, by Genre",
+       x = "Danceability", y = "Popularity")
 
   
 # 4.3 Correlation Matrix / Heatmap among selected audio variables
+# install.packages("corrplot")
 library(corrplot)
 
 corr_matrix_m3 <- spotify_tracks_unique %>%
@@ -893,16 +977,8 @@ corrplot(corr_matrix_m3, method = "color", type = "upper", addCoef.col = "black"
 
 
 # (Additional/Advanced) Multiple Linear Regression + VIF + Diagnostics
-lm_perceptual <- lm(popularity ~ danceability + energy + loudness + valence, data = spotify_tracks_unique)
-summary(lm_perceptual)
-# TODO: combines all 4 features into one model.
-# - each row's "Estimate" = how much popularity changes per 1-unit increase
-#   in that feature, holding the others constant
-# - "Pr(>|t|)" < 0.05 = that feature is a significant predictor
-# - "Adjusted R-squared" = % of popularity's variation explained by these
-#   4 features together (expect this to be small/low given the weak correlations)
-
-vif(lm_perceptual)
+library(car)
+vif(lm_flat)
 # TODO: checks if features overlap too much with each other
 # (multicollinearity). VIF > 5 (some use >10) = that feature is redundant
 # with the others and its individual coefficient becomes hard to trust
