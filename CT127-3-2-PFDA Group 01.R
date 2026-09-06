@@ -197,6 +197,7 @@ count_mode_1 <- sum(spotify_tracks_unique$mode == 1, na.rm = TRUE)
 count_mode_0
 count_mode_1 # mode = 1 is more common
 spotify_tracks_unique$mode[spotify_tracks_unique$mode != 0 & spotify_tracks_unique$mode != 1] <- 1
+##这个跟上面重复的特地的吗 欸嘿
 
 spotify_tracks_unique$key[spotify_tracks_unique$key < 0 | spotify_tracks_unique$key > 11] <- 7          # 7 - most
 spotify_tracks_unique$time_signature[spotify_tracks_unique$time_signature < 3 | spotify_tracks_unique$time_signature > 7] <- 4   # 4 - most
@@ -275,106 +276,11 @@ spotify_tracks_unique %>%
     avg_duration_min = mean(duration_ms, na.rm = TRUE) / 60000
   )
 
-
-# (ii) Distribution of variables - target variable
-ggplot(spotify_tracks_unique, aes(x = popularity)) +
-  geom_histogram(binwidth = 3, fill = "#4C72B0", color = "white") +
-  labs(title = "Distribution of Track Popularity", x = "Popularity", y = "Frequency")
-# TODO: skew direction, where most tracks concentrate
-
-
-# (iii) Distribution of variables - numeric audio features
-ggplot(spotify_tracks_unique, aes(x = danceability)) +
-  geom_histogram(binwidth = 0.03, fill = "#DD8452", color = "white") +
-  labs(title = "Distribution of Danceability", x = "Danceability", y = "Frequency")
-# TODO: shape, peak location
-
-ggplot(spotify_tracks_unique, aes(x = energy)) +
-  geom_histogram(binwidth = 0.02, fill = "#55A868", color = "white") +
-  labs(title = "Distribution of Energy", x = "Energy", y = "Frequency")
-# TODO: shape, peak location
-
-ggplot(spotify_tracks_unique, aes(x = loudness)) +
-  geom_histogram(binwidth = 1, fill = "#8172B2", color = "white") +
-  labs(title = "Distribution of Loudness", x = "Loudness (dB)", y = "Frequency")
-# TODO: shape, typical loudness range
-
-ggplot(spotify_tracks_unique, aes(x = tempo)) +
-  geom_histogram(binwidth = 3, fill = "#64B5CD", color = "white") +
-  labs(title = "Distribution of Tempo", x = "Tempo (BPM)", y = "Frequency")
-# TODO: shape, typical tempo range
-
-ggplot(spotify_tracks_unique, aes(x = valence)) +
-  geom_histogram(binwidth = 0.02, fill = "#CCB974", color = "white") +
-  labs(title = "Distribution of Valence", x = "Valence", y = "Frequency")
-# TODO: shape - skewed toward happy/sad tracks?
-
-ggplot(spotify_tracks_unique, aes(x = speechiness)) +
-  geom_histogram(binwidth = 0.01, fill = "#937860", color = "white") +
-  labs(title = "Distribution of Speechiness", x = "Speechiness", y = "Frequency")
-# TODO: shape - most tracks low speechiness (music, not podcasts)?
-
-ggplot(spotify_tracks_unique, aes(x = acousticness)) +
-  geom_histogram(binwidth = 0.03, fill = "#DA8BC3", color = "white") +
-  labs(title = "Distribution of Acousticness", x = "Acousticness", y = "Frequency")
-# TODO: shape
-
-ggplot(spotify_tracks_unique, aes(x = instrumentalness)) +
-  geom_histogram(binwidth = 0.04, fill = "#8C8C8C", color = "white") +
-  labs(title = "Distribution of Instrumentalness", x = "Instrumentalness", y = "Frequency")
-# TODO: shape - many near-zero (vocal tracks)?
-
-ggplot(spotify_tracks_unique, aes(x = liveness)) +
-  geom_histogram(binwidth = 0.02, fill = "#CCB974", color = "white") +
-  labs(title = "Distribution of Liveness", x = "Liveness", y = "Frequency")
-# TODO: shape - spike suggesting live recordings?
-
-
-# (iv) Distribution of variables - track duration
-ggplot(spotify_tracks_unique, aes(x = duration_ms / 60000)) +
-  geom_histogram(binwidth = 0.7, fill = "#55A868", color = "white") +
-  labs(title = "Distribution of Track Duration", x = "Duration (minutes)", y = "Frequency")
-# TODO: typical length range, long tail of outliers?
-
-
-# (v) Categorical variables - bar charts
-top_genres <- spotify_tracks_unique %>%
-  count(track_genre, sort = TRUE) %>%
-  head(10)
-
-ggplot(top_genres, aes(x = reorder(track_genre, n), y = n)) +
-  geom_bar(stat = "identity", fill = "#C44E52") +
-  coord_flip() +
-  labs(title = "Top 10 Track Genres by Count", x = "Genre", y = "Number of Tracks")
-# TODO: highest/lowest genre count, even or dominated?
-
-ggplot(spotify_tracks_unique, aes(x = explicit)) +
-  geom_bar(fill = "#C44E52") +
-  labs(title = "Explicit vs Non-Explicit Tracks", x = "Explicit", y = "Count")
-# TODO: proportion split, roughly what % explicit
-
-# factor(x) -> Treat x as categories, not continuous numerical number
-ggplot(spotify_tracks_unique, aes(x = factor(mode))) +
-  geom_bar(fill = "#4C72B0") +
-  labs(title = "Mode Distribution (0 = Minor, 1 = Major)", x = "Mode", y = "Count")
-# TODO: which mode dominates?
-
-ggplot(spotify_tracks_unique, aes(x = factor(time_signature))) +
-  geom_bar(fill = "#DD8452") +
-  labs(title = "Time Signature Distribution", x = "Time Signature", y = "Count")
-# TODO: most common time signature?
-
-ggplot(spotify_tracks_unique, aes(x = factor(key))) +
-  geom_bar(fill = "#8172B2") +
-  labs(title = "Key Distribution", x = "Key (0-11)", y = "Count")
-# TODO: which key is most/least common?
-
-# (vi) Boxplots - spread & outlier check with IQR
-# Popularity
+# (ii) Outlier exploration
+# (a) Popularity - Boxplot and IQR
 ggplot(spotify_tracks_unique, aes(y = popularity)) +
   geom_boxplot(fill = "#8172B2") +
   labs(title = "Boxplot of Popularity", y = "Popularity")
-# TODO: median, IQR, outlier nature
 
 Q1_popularity <- quantile(spotify_tracks_unique$popularity, 0.25)
 Q3_popularity <- quantile(spotify_tracks_unique$popularity, 0.75)
@@ -386,13 +292,13 @@ IQR_popularity
 spotify_tracks_unique %>%
   filter(popularity > Q3_popularity + 1.5*IQR_popularity) %>%
   select(track_name, popularity)
-# TODO: decide whether to remove, or keep the outlier(s), and justify
+# The popularity=100 point is a statistical outlier 
+# but represents a valid maximum score, so it was retained.
 
-# Duration (minutes)
+# (b) Duration (minutes) - Boxplot and IQR
 ggplot(spotify_tracks_unique, aes(y = duration_ms / 60000)) +
   geom_boxplot(fill = "#55A868") +
   labs(title = "Boxplot of Track Duration (minutes)", y = "Duration (minutes)")
-# TODO: outliers - unusually long/short tracks?
 
 Q1_duration <- quantile(spotify_tracks_unique$duration_ms / 60000, 0.25)
 Q3_duration <- quantile(spotify_tracks_unique$duration_ms / 60000, 0.75)
@@ -403,52 +309,23 @@ IQR_duration
 
 spotify_tracks_unique %>%
   filter(duration_ms/60000 > Q3_duration + 1.5*IQR_duration) %>%
-  select(track_name, duration_ms)
-# TODO: decide whether to remove, or keep the outlier(s), and justify
+  arrange(desc(duration_ms)) %>%
+  select(track_name, artists, track_genre, duration_ms) %>%
+  head(15)
+# Most tracks are 2.9 to 4.36 minutes
+# The most extreme duration outliers belong to 'Continuous DJ Mix' tracks and sleep/ambient/white-noise genres
+# where multi-hour length is a defining characteristic of the genre
+# so the outliers are retained
 
-# Popularity by Top 10 Genres
-spotify_tracks_unique %>%
-  filter(track_genre %in% top_genres$track_genre) %>%
-  ggplot(aes(x = track_genre, y = popularity)) +
-  geom_boxplot(fill = "#64B5CD") +
-  coord_flip() + # flip the chart sideways
-  labs(title = "Popularity by Top 10 Genres", x = "Genre", y = "Popularity")
-# TODO: highest/lowest median popularity genre, spread differences
-
-
-# (vii) Relationship between 2 variables - numeric vs numeric
-ggplot(spotify_tracks_unique, aes(x = energy, y = loudness)) +
-  geom_point(alpha = 0.3, color = "#64B5CD") +
-  geom_smooth(method = "lm", color = "#C44E52") +
-  labs(title = "Energy vs Loudness", x = "Energy", y = "Loudness (dB)")
-# TODO: correlation direction/strength visible?
-
-# Energy vs Loudness - density view (shows concentration, dark = few tracks, yellow = many tracks)
-ggplot(spotify_tracks_unique, aes(x = energy, y = loudness)) +
-  geom_hex(bins = 40) +
-  scale_fill_viridis_c() +
-  labs(title = "Energy vs Loudness (Density)", x = "Energy", y = "Loudness (dB)", fill = "Count") +
-  theme_minimal()
-# TODO: where is the darkest/most concentrated region? does it match the scatter's trend line?
-
-# Energy vs Loudness (split by Mode)
-ggplot(spotify_tracks_unique, aes(x = energy, y = loudness)) +
-  geom_point(alpha = 0.2, color = "#64B5CD") +
-  facet_wrap(~ factor(mode, labels = c("Minor", "Major"))) +
-  labs(title = "Energy vs Loudness by Mode")
-# TODO: does the relationship look similar for Minor vs Major, or different?
-
-
-# (viii) Correlation matrix - numeric variables
+# (iii) Table view - correlation of each variable with popularity, sorted highest to lowest
+# Correlation matrix - numeric variables
 numeric_vars <- spotify_tracks_unique %>%
   select(popularity, danceability, energy, loudness, speechiness,
          acousticness, instrumentalness, liveness, valence, tempo,
          duration_ms)
 
 cor_matrix <- cor(numeric_vars, use = "complete.obs")
-cor_matrix
 
-# Table view - correlation of each variable with popularity, sorted highest to lowest
 popularity_correlation = data.frame(
   Variable = c("danceability", "energy", "loudness", "speechiness",
                "acousticness", "instrumentalness", "liveness", "valence",
@@ -475,6 +352,258 @@ View(popularity_correlation)
 # +1: Perfect positive (One goes up, another one always goes up)
 # 0: No relationship
 # -1: Perfect negative (One goes up, another one always goes down)
+# PSW: This correlation table shows the relationship between each numeric variable and popularity. 
+# - All correlations are negligible (well below the ~0.1 threshold typically considered even "weak"), 
+# - indicating none of these variables have a meaningful linear relationship with popularity individually
+# - Loudness (0.048) and danceability (0.034) show the slightly strongest positive associations
+# - instrumentalness (-0.094) and speechiness (-0.045) show the slightly strongest negative associations
+# - Overall: none stand out as a meaningful individual predictor of popularity
+
+
+# !!!! W: Analysis 我待会儿看~~
+###############################################################
+# Objective 01: Chua Yexun
+# Explore Genre & Musical Characteristics
+# Variables: track_genre, explicit, key, mode, speechiness, acousticness, instrumentalness, liveness, popularity
+###############################################################
+# 1.1 Genre Distribution (Categorical variables - bar charts)
+top_genres <- spotify_tracks_unique %>%
+  count(track_genre, sort = TRUE) %>%
+  head(10)
+
+ggplot(top_genres, aes(x = reorder(track_genre, n), y = n)) +
+  geom_bar(stat = "identity", fill = "#C44E52") +
+  coord_flip() +
+  labs(title = "Top 10 Track Genres by Count", x = "Genre", y = "Number of Tracks")
+# TODO: highest/lowest genre count, even or dominated?
+
+# 1.2 Genre vs Popularity - Popularity by Top 10 Genres
+spotify_tracks_unique %>%
+  filter(track_genre %in% top_genres$track_genre) %>%
+  ggplot(aes(x = track_genre, y = popularity)) +
+  geom_boxplot(fill = "#64B5CD") +
+  coord_flip() + # flip the chart sideways
+  labs(title = "Popularity by Top 10 Genres", x = "Genre", y = "Popularity")
+# TODO: highest/lowest median popularity genre, spread differences
+
+# 1.3 Explicit vs Popularity
+spotify_tracks_unique %>% count(explicit)
+
+ggplot(spotify_tracks_unique,
+       aes(x = factor(explicit), y = popularity)) +
+  geom_boxplot() +
+  labs(title = "Popularity by Explicit Content", x = "Explicit", y = "Popularity")
+
+# 1.4 Key vs Popularity
+spotify_tracks_unique %>% count(key)
+
+ggplot(spotify_tracks_unique,
+       aes(x = factor(key), y = popularity)) +
+  geom_boxplot() +
+  labs(title = "Popularity by Key", x = "Key", y = "Popularity")
+
+# 1.5 Mode vs Popularity
+spotify_tracks_unique %>% count(mode)
+
+ggplot(spotify_tracks_unique,
+       aes(x = factor(mode), y = popularity)) +
+  geom_boxplot() +
+  labs(title = "Popularity by Mode", x = "Mode (0 = Minor, 1 = Major)", y = "Popularity")
+
+# 1.6 Continuous audio characteristics - speechiness, acousticness, instrumentalness, liveness
+ggplot(spotify_tracks_unique,
+       aes(x = speechiness, y = popularity)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm") +
+  labs(
+    title = "Speechiness vs Popularity",
+    x = "Speechiness",
+    y = "Popularity"
+  )
+
+ggplot(spotify_tracks_unique,
+       aes(x = acousticness, y = popularity)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm") +
+  labs(
+    title = "Acousticness vs Popularity",
+    x = "Acousticness",
+    y = "Popularity"
+  )
+
+ggplot(spotify_tracks_unique,
+       aes(x = instrumentalness, y = popularity)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm") +
+  labs(
+    title = "Instrumentalness vs Popularity",
+    x = "Inatrumentalness",
+    y = "Popularity"
+  )
+
+ggplot(spotify_tracks_unique,
+       aes(x = liveness, y = popularity)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm") +
+  labs(
+    title = "Liveness vs Popularity",
+    x = "Liveness",
+    y = "Popularity"
+  )
+
+###############################################################
+# Objective 02: Lim Chee Xuan
+# Explore Duration & Temporal Characteristics
+# Variables: duration_ms, tempo, time_signature, popularity
+###############################################################
+# 2.1 Track Duration Distribution
+ggplot(spotify_tracks_unique, aes(x = duration_ms / 60000)) +
+  geom_histogram(binwidth = 0.7, fill = "#55A868", color = "white") +
+  labs(title = "Distribution of Track Duration", x = "Duration (minutes)", y = "Frequency")
+# TODO: typical length range, long tail of outliers?
+
+# 2.2 Duration vs Popularity
+ggplot(spotify_tracks_unique,
+       aes(x = duration_ms / 60000, y = popularity)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm") +
+  labs(
+    title = "Track Duration vs Popularity",
+    x = "Duration (minutes)",
+    y = "Popularity"
+  )
+
+# 2.3 Temporal Characteristics - Tempo vs Popularity
+ggplot(spotify_tracks_unique,
+       aes(x = tempo, y = popularity)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm") +
+  labs(
+    title = "Tempo vs Popularity",
+    x = "Tempo (BPM)",
+    y = "Popularity"
+  )
+
+# 2.4 Temporal characteristics - Time Signature vs Popularity
+spotify_tracks_unique %>% count(time_signature)
+
+ggplot(spotify_tracks_unique,
+       aes(x = factor(time_signature), y = popularity)) +
+  geom_boxplot() +
+  labs(title = "Popularity by Time Signature", x = "Time Signature", y = "Popularity")
+
+###############################################################
+# Objective 03: Paureen Tan Nie Nie
+# Artist & Track Characteristics
+# Variables: artists, album_name, track_name, popularity
+###############################################################
+# 3.1 Number of tracks by artist
+top_artists <- spotify_tracks_unique %>%
+  count(artists, sort = TRUE) %>%
+  head(10)
+
+ggplot(top_artists, aes(x = reorder(artists, n), y = n)) +
+  geom_col() +
+  coord_flip() +
+  labs(
+    title = "Top 10 Artists by Number of Tracks",
+    x = "Artist",
+    y = "Number of Tracks"
+  )
+
+# 3.2 Artist vs Popularity
+spotify_tracks_unique %>%
+  filter(artists %in% top_artists$artists) %>%
+  ggplot(aes(x = artists, y = popularity)) +
+  geom_boxplot() +
+  coord_flip() +
+  labs(
+    title = "Popularity by Top 10 Artists",
+    x = "Artist",
+    y = "Popularity"
+  )
+
+# 3.3 Track Name and Album Name vs Popularity
+spotify_tracks_unique %>%
+  arrange(desc(popularity)) %>%
+  select(track_name, artists, album_name, popularity) %>%
+  head(10)
+
+###############################################################
+# Objective 04: Phang Shea Wen
+# Perceptual Audio Characteristics
+# Variables: danceability, energy, loudness, valence, popularity
+###############################################################
+# 4.1 Distributions 0 danceability, energy, loudness, valence
+ggplot(spotify_tracks_unique, aes(x = danceability)) +
+  geom_histogram(binwidth = 0.03, fill = "#DD8452", color = "white") +
+  labs(title = "Distribution of Danceability", x = "Danceability", y = "Frequency")
+# TODO: shape, peak location
+# PSW:
+# - Left-skewed (negatively skewed) with majority concentrated between 0.5 and 0.75
+# - Indicating that most tracks have moderate to relatively high danceability
+
+ggplot(spotify_tracks_unique, aes(x = energy)) +
+  geom_histogram(binwidth = 0.02, fill = "#55A868", color = "white") +
+  labs(title = "Distribution of Energy", x = "Energy", y = "Frequency")
+# TODO: shape, peak location
+
+ggplot(spotify_tracks_unique, aes(x = loudness)) +
+  geom_histogram(binwidth = 1, fill = "#8172B2", color = "white") +
+  labs(title = "Distribution of Loudness", x = "Loudness (dB)", y = "Frequency")
+# TODO: shape, typical loudness range
+
+ggplot(spotify_tracks_unique, aes(x = valence)) +
+  geom_histogram(binwidth = 0.02, fill = "#CCB974", color = "white") +
+  labs(title = "Distribution of Valence", x = "Valence", y = "Frequency")
+# TODO: shape - skewed toward happy/sad tracks?
+
+# 4.2 Relationship with Popularity
+ggplot(spotify_tracks_unique,
+       aes(x = danceability, y = popularity)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm") +
+  labs(
+    title = "Danceability vs Popularity",
+    x = "Danceability",
+    y = "Popularity"
+  )
+
+ggplot(spotify_tracks_unique,
+       aes(x = energy, y = popularity)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm") +
+  labs(
+    title = "Energy vs Popularity",
+    x = "Energy",
+    y = "Popularity"
+  )
+
+ggplot(spotify_tracks_unique,
+       aes(x = loudness, y = popularity)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm") +
+  labs(
+    title = "Loudness vs Popularity",
+    x = "Loudness (dB)",
+    y = "Popularity"
+  )
+
+ggplot(spotify_tracks_unique,
+       aes(x = valence, y = popularity)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm") +
+  labs(
+    title = "Valence vs Popularity",
+    x = "Valence",
+    y = "Popularity"
+  )
+
+# 4.3 Correlation
+numeric_vars_audio <- spotify_tracks_unique %>%
+  select(danceability, energy, loudness, valence, popularity)
+cor_matrix_audio <- cor(numeric_vars_audio, use = "complete.obs")
+cor_matrix_audio
 
 
 ###############################################################
