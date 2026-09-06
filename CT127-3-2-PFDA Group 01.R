@@ -977,19 +977,21 @@ corrplot(corr_matrix_m3, method = "color", type = "upper", addCoef.col = "black"
 
 
 # (Additional/Advanced) Multiple Linear Regression + VIF + Diagnostics
-# install.packages("rbibutils")   # force R to update to 2.4+
-install.packages("Deriv")
-install.packages("doBy")
-install.packages("pbkrtest")
-install.packages("car")
-library(car)
-vif(lm_flat)
+vif_danceability <- 1 / (1 - summary(lm(danceability ~ energy + loudness + valence, data = genre_subset))$r.squared)
+vif_energy       <- 1 / (1 - summary(lm(energy ~ danceability + loudness + valence, data = genre_subset))$r.squared)
+vif_loudness     <- 1 / (1 - summary(lm(loudness ~ danceability + energy + valence, data = genre_subset))$r.squared)
+vif_valence      <- 1 / (1 - summary(lm(valence ~ danceability + energy + loudness, data = genre_subset))$r.squared)
+
+data.frame(
+  Feature = c("danceability", "energy", "loudness", "valence"),
+  VIF = round(c(vif_danceability, vif_energy, vif_loudness, vif_valence), 3)
+)
 # TODO: checks if features overlap too much with each other
 # (multicollinearity). VIF > 5 (some use >10) = that feature is redundant
 # with the others and its individual coefficient becomes hard to trust
 
 par(mfrow = c(2, 2))
-plot(lm_perceptual)
+plot(lm_flat)
 par(mfrow = c(1, 1))
 # TODO: 4 standard diagnostic plots -
 # Residuals vs Fitted (should look random, no pattern),
