@@ -473,6 +473,7 @@ ggplot(spotify_tracks_unique,
     y = "Popularity"
   )
 
+
 ###############################################################
 # Objective 02: Lim Chee Xuan
 # Explore Duration & Temporal Characteristics
@@ -514,6 +515,7 @@ ggplot(spotify_tracks_unique,
   geom_boxplot() +
   labs(title = "Popularity by Time Signature", x = "Time Signature", y = "Popularity")
 
+
 ###############################################################
 # Objective 03: Paureen Tan Nie Nie
 # Artist & Track Characteristics
@@ -532,6 +534,8 @@ ggplot(top_artists, aes(x = reorder(artists, n), y = n)) +
     x = "Artist",
     y = "Number of Tracks"
   )
+# The Beatles - Most tracks
+# Used for 3.2 to check whether having more tracks correlates with higher popularity
 
 # 3.2 Artist vs Popularity
 spotify_tracks_unique %>%
@@ -544,12 +548,16 @@ spotify_tracks_unique %>%
     x = "Artist",
     y = "Popularity"
   )
+# Having more tracks doesnt mean more popular
 
 # 3.3 Track Name and Album Name vs Popularity
 spotify_tracks_unique %>%
   arrange(desc(popularity)) %>%
   select(track_name, artists, album_name, popularity) %>%
   head(10)
+# Top Popularity = Unholy (100)
+# The song appear multiple times as the song is tagged under more than one genre
+
 
 ###############################################################
 # Objective 04: Phang Shea Wen
@@ -791,8 +799,9 @@ spotify_tracks_unique %>%
 # To determine the relationship between the artist-related and track-related characteristics and Spotify track popularity.
 # Variables: artists, album_name, track_name, popularity
 ###############################################################
-# install.packages("car")
-library(car)
+# install.packages("effectsize")
+library(effectsize)
+
 # (Additional/Advanced) Create artist_count & collaboration_status ----
 # strsplit(artists, ";") breaks each artist string apart at every ";"
 # and gives back a list, e.g. list("Nat King Cole", "John Legend")
@@ -804,13 +813,14 @@ spotify_tracks_unique <- spotify_tracks_unique %>%
   )
 
 table(spotify_tracks_unique$collaboration_status)
-# TODO: how many tracks are solo vs multi-artist collaborations
+# Solo: 83265, Collaboration: 29751
+# Used in 3.2 to test whether collaboration tracks differ in popularity from solo tracks
 
 
 # 3.1 Descriptive statistics - artist, album, track info
-n_distinct(spotify_tracks_unique$artists)  
-n_distinct(spotify_tracks_unique$album_name) 
-n_distinct(spotify_tracks_unique$track_name) 
+n_distinct(spotify_tracks_unique$artists) #31343
+n_distinct(spotify_tracks_unique$album_name) #46460
+n_distinct(spotify_tracks_unique$track_name) #73301
 
 album_stats <- spotify_tracks_unique %>%
   group_by(album_name) %>%
@@ -818,9 +828,8 @@ album_stats <- spotify_tracks_unique %>%
   filter(n_tracks >= 3) %>% 
   arrange(desc(avg_popularity))
 
-head(album_stats, 10)  
-tail(album_stats, 10) 
-# TODO: basic counts + which albums score highest/lowest on average popularity
+head(album_stats, 10) # Average Range for Top 10 88 - 98
+tail(album_stats, 10) # Popularity - 0, some r old Russian music (1940s - 1950s)
 
 
 # 3.2 Artist/Collaboration Analysis - solo vs collaboration
@@ -828,14 +837,25 @@ collab_stats <- spotify_tracks_unique %>%
   group_by(collaboration_status) %>%
   summarise(n = n(), mean_popularity = mean(popularity, na.rm = TRUE))
 collab_stats
+# Mean Popularity (Collaboration) = 33.9
+# Mean Popularity (Solo) = 33.1
 
-t.test(popularity ~ collaboration_status, data = spotify_tracks_unique)
+collab_ttest <- t.test(popularity ~ collaboration_status, data = spotify_tracks_unique)
+collab_ttest
+# t = 4.68, df = 48416, p = 2.81e-06 (< 0.001)
+# p < 0.05 = the difference in average popularity is statistically significant,
+# very unlikely to be due to random sampling chance
 
 ggplot(collab_stats, aes(x = collaboration_status, y = mean_popularity)) +
   geom_bar(stat = "identity", fill = "#4C72B0") +
   labs(title = "Average Popularity: Solo vs Collaboration Tracks",
        x = "Track Type", y = "Average Popularity")
-# TODO: do collaboration tracks tend to be more/less popular than solo tracks? t-test p-value < 0.05 = the difference is unlikely random
+
+# 3.2b Effect size (Cohen's d)
+cohens_d(popularity ~ collaboration_status, data = spotify_tracks_unique)
+# d = 0.03, 95% CI [0.02, 0.05]
+# small effect = the actual difference is extremely small
+# ~0.2 - small; ~0.5 - medium; ~0.8 - large
 
 
 # 3.3 Artist-Level Comparison - top artists with enough tracks
@@ -855,7 +875,8 @@ ggplot(top10_artists, aes(x = reorder(artists, avg_popularity), y = avg_populari
   coord_flip() +
   labs(title = "Top 10 Artists by Average Popularity (min. 5 tracks)",
        x = "Artist", y = "Average Popularity")
-# TODO: which individual artists (with a reasonable track count) have the highest average popularity
+# Olivia Rodrigo - Highest Average Popularity (87.4) - 5 Tracks
+# Måneskin & Lil Nas X - 83.7 (12), 83.5 (11): More consistent popularity acorss their catalogue
 
 
 ###############################################################
