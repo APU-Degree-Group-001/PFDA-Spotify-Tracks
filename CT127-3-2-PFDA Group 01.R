@@ -92,11 +92,23 @@ spotify_tracks_unique <- spotify_tracks_unique %>% distinct()
 # (iii) Calculate percentage of null values (To decide whether to remove or impute)
 colSums(is.na(spotify_tracks_unique))
 
+# is.na() only catches true NA, not empty strings
+spotify_tracks_unique$artists[trimws(spotify_tracks_unique$artists) == ""] <- NA
+spotify_tracks_unique$album_name[trimws(spotify_tracks_unique$album_name) == ""] <- NA
+spotify_tracks_unique$track_name[trimws(spotify_tracks_unique$track_name) == ""] <- NA
+spotify_tracks_unique$track_genre[trimws(spotify_tracks_unique$track_genre) == ""] <- NA
+
+colSums(is.na(spotify_tracks_unique))
+
 # - put in dataframe > better view of No. of N/A & (%)
 missing_values_summary = data.frame(
   Column = names(spotify_tracks_unique),
-  Missing_Values_Count = colSums(is.na(spotify_tracks_unique)),
-  Missing_Percentage = round(colSums(is.na(spotify_tracks_unique)) / nrow(spotify_tracks_unique) * 100, 2)
+  Missing_Values_Count = sapply(spotify_tracks_unique, function(col) {
+    if (is.character(col)) sum(is.na(col) | trimws(col) == "") else sum(is.na(col))
+  })
+)
+missing_values_summary$Missing_Percentage = round(
+  missing_values_summary$Missing_Values_Count / nrow(spotify_tracks_unique) * 100, 2
 )
 
 View(missing_values_summary)
@@ -143,6 +155,17 @@ table(spotify_tracks_unique$key) # 7 - most (13187)
 spotify_tracks_unique$time_signature[is.na(spotify_tracks_unique$time_signature)] <- 4
 spotify_tracks_unique$key[is.na(spotify_tracks_unique$key)] <- 7
 colSums(is.na(spotify_tracks_unique))
+
+# (vi) Remove Data
+nrow_before <- nrow(spotify_tracks_unique)
+
+spotify_tracks_unique <- na.omit(spotify_tracks_unique)
+colSums(is.na(spotify_tracks_unique))
+
+nrow_after <- nrow(spotify_tracks_unique)
+nrow_before - nrow_after
+round((nrow_before - nrow_after) / nrow_before * 100, 3)
+
 
 ###############################################################
 # (D) Data Validation
@@ -192,16 +215,12 @@ spotify_tracks_unique$tempo[spotify_tracks_unique$tempo <= 0] <- median(spotify_
 spotify_tracks_unique$duration_ms[spotify_tracks_unique$duration_ms <= 0] <- median(spotify_tracks_unique$duration_ms, na.rm = TRUE)
 
 # Impute with mode
-count_mode_0 <- sum(spotify_tracks_unique$mode == 0, na.rm = TRUE)
-count_mode_1 <- sum(spotify_tracks_unique$mode == 1, na.rm = TRUE)
-count_mode_0
-count_mode_1 # mode = 1 is more common
+# mode = 1 is more common (Based on (C)(v))
 spotify_tracks_unique$mode[spotify_tracks_unique$mode != 0 & spotify_tracks_unique$mode != 1] <- 1
-##这个跟上面重复的特地的吗 欸嘿
-
-spotify_tracks_unique$key[spotify_tracks_unique$key < 0 | spotify_tracks_unique$key > 11] <- 7          # 7 - most
-spotify_tracks_unique$time_signature[spotify_tracks_unique$time_signature < 3 | spotify_tracks_unique$time_signature > 7] <- 4   # 4 - most
-
+# key = 7 is more common (Based on (C)(v))
+spotify_tracks_unique$key[spotify_tracks_unique$key < 0 | spotify_tracks_unique$key > 11] <- 7
+# time_signature = 4 is more common (Based on (C)(v))
+spotify_tracks_unique$time_signature[spotify_tracks_unique$time_signature < 3 | spotify_tracks_unique$time_signature > 7] <- 4
 
 # Re-check for invalid values after imputation
 validation_summary_after = data.frame(
@@ -999,3 +1018,4 @@ par(mfrow = c(1, 1))
 # Scale-Location (spread should look even across the range),
 # Residuals vs Leverage (flags any single track that's disproportionately
 # influencing the model)
+
