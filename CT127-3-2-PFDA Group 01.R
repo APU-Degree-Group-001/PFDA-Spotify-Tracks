@@ -11,6 +11,8 @@ setwd("E:/Academics/APU/APD2F2606CS(AI)/Semester 1/Programming for Data Analysis
 setwd("D:/APU/Degree/APD2F2606CS(AI)/SEM 1/Programming for Data Analysis/Assignment/dataset")
 # For Chee Xuan
 setwd("C:/Users/ASUS/OneDrive/Documents/APU/SEM 1 PFDA Programming for Data Analysis/PFDA Assignment/Assignment Data Set")
+# For Yexun
+setwd("C:/Users/Chua/OneDrive/Desktop/Degree Y2 Sem 1/PFDA/PDFA_Spotify_Tracks/PFDA-Spotify-Tracks")
 
 # install packages (one-time job)
 # library gone when power off, so need to load library at least one time in the script
