@@ -802,21 +802,6 @@ spotify_tracks_unique %>%
 # install.packages("effectsize")
 library(effectsize)
 
-# (Additional/Advanced) Create artist_count & collaboration_status ----
-# strsplit(artists, ";") breaks each artist string apart at every ";"
-# and gives back a list, e.g. list("Nat King Cole", "John Legend")
-# sapply(..., length) then just counts how many names came out of each split
-spotify_tracks_unique <- spotify_tracks_unique %>%
-  mutate(
-    artist_count = sapply(strsplit(as.character(artists), ";"), length),
-    collaboration_status = ifelse(artist_count > 1, "Collaboration", "Solo")
-  )
-
-table(spotify_tracks_unique$collaboration_status)
-# Solo: 83265, Collaboration: 29751
-# Used in 3.2 to test whether collaboration tracks differ in popularity from solo tracks
-
-
 # 3.1 Descriptive statistics - artist, album, track info
 n_distinct(spotify_tracks_unique$artists) #31343
 n_distinct(spotify_tracks_unique$album_name) #46460
@@ -832,33 +817,7 @@ head(album_stats, 10) # Average Range for Top 10 88 - 98
 tail(album_stats, 10) # Popularity - 0, some r old Russian music (1940s - 1950s)
 
 
-# 3.2 Artist/Collaboration Analysis - solo vs collaboration
-collab_stats <- spotify_tracks_unique %>%
-  group_by(collaboration_status) %>%
-  summarise(n = n(), mean_popularity = mean(popularity, na.rm = TRUE))
-collab_stats
-# Mean Popularity (Collaboration) = 33.9
-# Mean Popularity (Solo) = 33.1
-
-collab_ttest <- t.test(popularity ~ collaboration_status, data = spotify_tracks_unique)
-collab_ttest
-# t = 4.68, df = 48416, p = 2.81e-06 (< 0.001)
-# p < 0.05 = the difference in average popularity is statistically significant,
-# very unlikely to be due to random sampling chance
-
-ggplot(collab_stats, aes(x = collaboration_status, y = mean_popularity)) +
-  geom_bar(stat = "identity", fill = "#4C72B0") +
-  labs(title = "Average Popularity: Solo vs Collaboration Tracks",
-       x = "Track Type", y = "Average Popularity")
-
-# 3.2b Effect size (Cohen's d)
-cohens_d(popularity ~ collaboration_status, data = spotify_tracks_unique)
-# d = 0.03, 95% CI [0.02, 0.05]
-# small effect = the actual difference is extremely small
-# ~0.2 - small; ~0.5 - medium; ~0.8 - large
-
-
-# 3.3 Artist-Level Comparison - top artists with enough tracks
+# 3.2 Artist-Level Comparison - top artists with enough tracks
 artist_stats <- spotify_tracks_unique %>%
   # splits "Nat King Cole;John Legend" into 2 separate rows, so each artist gets individual credit for that track's popularity
   separate_rows(artists, sep = ";") %>%
@@ -877,6 +836,47 @@ ggplot(top10_artists, aes(x = reorder(artists, avg_popularity), y = avg_populari
        x = "Artist", y = "Average Popularity")
 # Olivia Rodrigo - Highest Average Popularity (87.4) - 5 Tracks
 # Måneskin & Lil Nas X - 83.7 (12), 83.5 (11): More consistent popularity acorss their catalogue
+
+
+# 3.3 Create artist_count & collaboration_status ----
+# strsplit(artists, ";") breaks each artist string apart at every ";"
+# and gives back a list, e.g. list("Nat King Cole", "John Legend")
+# sapply(..., length) then just counts how many names came out of each split
+spotify_tracks_unique <- spotify_tracks_unique %>%
+  mutate(
+    artist_count = sapply(strsplit(as.character(artists), ";"), length),
+    collaboration_status = ifelse(artist_count > 1, "Collaboration", "Solo")
+  )
+
+table(spotify_tracks_unique$collaboration_status)
+# Solo: 83265, Collaboration: 29751
+# Used in 3.2 to test whether collaboration tracks differ in popularity from solo tracks
+
+
+# (Additional) Artist/Collaboration Analysis - solo vs collaboration
+collab_stats <- spotify_tracks_unique %>%
+  group_by(collaboration_status) %>%
+  summarise(n = n(), mean_popularity = mean(popularity, na.rm = TRUE))
+collab_stats
+# Mean Popularity (Collaboration) = 33.9
+# Mean Popularity (Solo) = 33.1
+
+collab_ttest <- t.test(popularity ~ collaboration_status, data = spotify_tracks_unique)
+collab_ttest
+# t = 4.68, df = 48416, p = 2.81e-06 (< 0.001)
+# p < 0.05 = the difference in average popularity is statistically significant,
+# very unlikely to be due to random sampling chance
+
+ggplot(collab_stats, aes(x = collaboration_status, y = mean_popularity)) +
+  geom_bar(stat = "identity", fill = "#4C72B0") +
+  labs(title = "Average Popularity: Solo vs Collaboration Tracks",
+       x = "Track Type", y = "Average Popularity")
+
+# b Effect size (Cohen's d)
+cohens_d(popularity ~ collaboration_status, data = spotify_tracks_unique)
+# d = 0.03, 95% CI [0.02, 0.05]
+# small effect = the actual difference is extremely small
+# ~0.2 - small; ~0.5 - medium; ~0.8 - large
 
 
 ###############################################################
