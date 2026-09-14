@@ -29,10 +29,7 @@ library(data.table)
 spotify_tracks = fread("2. spotify_tracks_data.csv")
 
 
-
-###############################################################
-# (B) Data Exploration
-###############################################################
+# Brief exploration
 head(spotify_tracks)
 tail(spotify_tracks)
 str(spotify_tracks)
@@ -44,7 +41,7 @@ View(spotify_tracks)
 
 
 ###############################################################
-# (C) Data Cleaning
+# (B) Data Cleaning
 ###############################################################
 # (i) Check for duplicate records
 numDuplicates = sum(duplicated(spotify_tracks)) # 0
@@ -123,7 +120,7 @@ rows_with_missing_values = sum(!complete.cases(spotify_tracks_unique))
 rows_with_missing_values
 rows_missing_percentage = (rows_with_missing_values / nrow(spotify_tracks_unique)) * 100
 rows_missing_percentage
-# 2.567691% rows with missing values
+# 3.067674% rows with missing values
 
 
 # (v) Data Imputation - Missing Value
@@ -371,7 +368,6 @@ popularity_correlation$Correlation_with_Popularity = round(popularity_correlatio
 popularity_correlation = popularity_correlation[order(-popularity_correlation$Correlation_with_Popularity), ]
 
 View(popularity_correlation)
-# TODO: which variables correlate most with popularity (both positive and negative)?
 # +1: Perfect positive (One goes up, another one always goes up)
 # 0: No relationship
 # -1: Perfect negative (One goes up, another one always goes down)
@@ -925,9 +921,7 @@ ggplot(perceptual_corr, aes(x = reorder(Feature, Correlation_with_Popularity),
   geom_bar(stat = "identity", fill = "#8172B2") +
   coord_flip() +
   labs(title = "Correlation of Audio Features with Popularity", x = "Feature", y = "Correlation")
-# TODO: which of the 4 features relates most strongly (+/-) to popularity
-# All four pooled correlations are weak (|r| < 0.1) - none is individually
-# a meaningful predictor of popularity on its own.
+# All four pooled correlations are weak (|r| < 0.1) - none is individually a meaningful predictor of popularity on its own.
 
 
 # (b) Genre-conditional correlation
@@ -952,14 +946,20 @@ genre_corr <- genre_subset %>%
   )
 
 print(genre_corr)
-# TODO: compare each column's spread across genres against the pooled
-# value above - do any genres show a noticeably stronger (+/-) correlation
-# than the ~0.03-0.05 pooled figures?
-# Several genres show much stronger correlations than the pooled figures
-# (e.g. funk danceability = 0.326, disco loudness = -0.263), and signs
-# sometimes flip across genres (e.g. loudness: -0.263 in disco vs +0.208
-# in british) - suggesting the pooled correlation was masking/canceling
-# genre-specific effects rather than reflecting a true absence of relationship.
+
+# Heatmap
+# install.packages("corrplot")
+library(corrplot)
+
+corr_matrix_m3 <- spotify_tracks_unique %>%
+  select(danceability, energy, loudness, valence, popularity) %>%
+  cor(use = "complete.obs")
+
+print(round(corr_matrix_m3, 3))
+
+corrplot(corr_matrix_m3, method = "color", type = "upper", addCoef.col = "black", tl.col = "black", 
+         tl.srt = 45, title = "Correlation Heatmap - Perceptual Audio Features", mar = c(0,0,2,0))
+
 
 # (c) Does allowing slopes to vary by genre improve the model？
 # Flat model (same as pooled correlation implies: one slope for everyone)
@@ -972,83 +972,85 @@ lm_inter <- lm(popularity ~ (danceability + energy + loudness + valence) * track
 
 # F-test: is the improvement in fit statistically significant?
 anova(lm_flat, lm_inter)
+#  Res.DF > lm_inter is lower (9929)
+# RSS > lm_Inter is lower (3978029)
+# F 57.668 > no. error removed per parameter / no. error left per row
+# p < 0.05, 2.2e^-16
 
-# Effect size: HOW MUCH does it actually improve? (don't stop at the p-value -
-# with n ~ 114k, even trivial improvements will be "significant")
+# Effect size: HOW MUCH does it actually improve?
 r2_flat  <- summary(lm_flat)$adj.r.squared
 r2_inter <- summary(lm_inter)$adj.r.squared
-cat("Adjusted R2 (flat):       ", round(r2_flat, 4), "\n")
-cat("Adjusted R2 (interaction):", round(r2_inter, 4), "\n")
-cat("R2 improvement:           ", round(r2_inter - r2_flat, 4), "\n")
-# TODO: if the improvement is small (e.g. < 0.01-0.02) even though the
-# F-test is significant, report it as "statistically detectable but
-# practically small" rather than implying a strong genre-specific effect
-# Adjusted R2 improved from 0.025 (flat) to 0.211 (interaction), F(45, 9950)
-# = 53.3, p < .001 - a substantial improvement, not just statistically
-# significant noise from a large n.
+cat("Adjusted R2 (flat):       ", round(r2_flat, 4), "\n") # 0.0563
+cat("Adjusted R2 (interaction):", round(r2_inter, 4), "\n") # 0.2484
+cat("R2 improvement:           ", round(r2_inter - r2_flat, 4), "\n") # 0.1922
 
-# (d) per-genre slopes for whichever feature(s) looked genre-dependent in (b)/(c)
+
+# (d) per-genre slopes for whichever feature(s) looked genre-dependent in (b) => energy and loudness
 # install.packages("emmeans")
 library(emmeans)
 
-danceability_slopes <- emtrends(lm_inter, ~ track_genre, var = "danceability")
-danceability_slope_table <- as.data.frame(danceability_slopes)[, c("track_genre", "danceability.trend")]
-colnames(danceability_slope_table) <- c("Genre", "Danceability_Slope")
-danceability_slope_table$Danceability_Slope <- round(danceability_slope_table$Danceability_Slope, 3)
-print(danceability_slope_table)
+# Energy slopes per genre
+energy_slopes <- emtrends(lm_inter, ~ track_genre, var = "energy")
+energy_slope_table <- as.data.frame(energy_slopes)[, c("track_genre", "energy.trend")]
+colnames(energy_slope_table) <- c("Genre", "Energy_Slope")
+energy_slope_table$Energy_Slope <- round(energy_slope_table$Energy_Slope, 3)
+print(energy_slope_table)
+# swedish 17.189 (largest positive gradient), reggae -26.551 (largest negative gradient)
+
+# Loudness slopes per genre
+loudness_slopes <- emtrends(lm_inter, ~ track_genre, var = "loudness")
+loudness_slope_table <- as.data.frame(loudness_slopes)[, c("track_genre", "loudness.trend")]
+colnames(loudness_slope_table) <- c("Genre", "Loudness_Slope")
+loudness_slope_table$Loudness_Slope <- round(loudness_slope_table$Loudness_Slope, 3)
+print(loudness_slope_table)
+# soul 1.280 (largest positive gradient), disco -2.266 (largest negative gradient)
 
 
 # (e) Visualize the strongest genre-dependent feature
-# Swap "danceability" below for whichever feature (b)/(d) flagged as most
-# genre-dependent. Only plot one feature at a time - facets get unreadable
-# with more.
-ggplot(genre_subset, aes(x = danceability, y = popularity)) +
+# energy
+ggplot(genre_subset, aes(x = energy, y = popularity)) +
   geom_point(alpha = 0.15) +
   geom_smooth(method = "lm", se = TRUE, color = "red") +
   facet_wrap(~ track_genre, scales = "free_y") +
-  labs(title = "Danceability vs Popularity, by Genre",
-       x = "Danceability", y = "Popularity")
+  labs(title = "Energy vs Popularity, by Genre",
+       x = "Energy", y = "Popularity")
 
+# loudness
+ggplot(genre_subset, aes(x = loudness, y = popularity)) +
+  geom_point(alpha = 0.15) +
+  geom_smooth(method = "lm", se = TRUE, color = "red") +
+  facet_wrap(~ track_genre, scales = "free_y") +
+  labs(title = "Loudness vs Popularity, by Genre",
+       x = "Loudness", y = "Popularity")
   
-# 4.3 Correlation Matrix / Heatmap among selected audio variables
-# install.packages("corrplot")
-library(corrplot)
-
-corr_matrix_m3 <- spotify_tracks_unique %>%
-  select(danceability, energy, loudness, valence, popularity) %>%
-  cor(use = "complete.obs")
-
-print(round(corr_matrix_m3, 3))
-
-corrplot(corr_matrix_m3, method = "color", type = "upper", addCoef.col = "black", tl.col = "black", tl.srt = 45, title = "Correlation Heatmap - Perceptual Audio Features", mar = c(0,0,2,0))
-# TODO: all pairwise relationships at once, colour-coded -
-# blue = positive relationship, red = negative, the number in each box
-# is the exact correlation. Includes relationships between the audio
-# features themselves (e.g. energy and loudness are usually strongly
-# correlated with EACH OTHER, not just with popularity)
-
-
-# (Additional/Advanced) Multiple Linear Regression + VIF + Diagnostics
-vif_danceability <- 1 / (1 - summary(lm(danceability ~ energy + loudness + valence, data = genre_subset))$r.squared)
-vif_energy       <- 1 / (1 - summary(lm(energy ~ danceability + loudness + valence, data = genre_subset))$r.squared)
-vif_loudness     <- 1 / (1 - summary(lm(loudness ~ danceability + energy + valence, data = genre_subset))$r.squared)
-vif_valence      <- 1 / (1 - summary(lm(valence ~ danceability + energy + loudness, data = genre_subset))$r.squared)
+# 4.3 (Additional/Advanced) Multiple Linear Regression + VIF + Diagnostics
+vif_danceability <- 1 / (1 - summary(lm(danceability ~ energy + loudness + valence, data = genre_subset))$r.squared) # 1.301
+vif_energy       <- 1 / (1 - summary(lm(energy ~ danceability + loudness + valence, data = genre_subset))$r.squared) # 2.858
+vif_loudness     <- 1 / (1 - summary(lm(loudness ~ danceability + energy + valence, data = genre_subset))$r.squared) # 2.316
+vif_valence      <- 1 / (1 - summary(lm(valence ~ danceability + energy + loudness, data = genre_subset))$r.squared) # 1.679
 
 data.frame(
   Feature = c("danceability", "energy", "loudness", "valence"),
   VIF = round(c(vif_danceability, vif_energy, vif_loudness, vif_valence), 3)
 )
-# TODO: checks if features overlap too much with each other
-# (multicollinearity). VIF > 5 (some use >10) = that feature is redundant
-# with the others and its individual coefficient becomes hard to trust
+# energy and loudness has stronger link with each other, but still < 5 or 10 (safe)
+
+par(mfrow = c(2, 2)) # 2 x2 grid
+plot(lm_flat)
+par(mfrow = c(1, 1)) # 1 plot per figure
+# Residuals vs Fitted: flat red horizontal line, but spread is slightly uneven with less on the edges
+# Q-Q Residuals: S-curve not normal
+# Scale-Location: flat horizontal red line
+# Residual vs Leverage: majority points have low leverage, no dangerous outliers
 
 par(mfrow = c(2, 2))
-plot(lm_flat)
+plot(lm_inter)
 par(mfrow = c(1, 1))
-# TODO: 4 standard diagnostic plots -
-# Residuals vs Fitted (should look random, no pattern),
-# Q-Q plot (points should roughly follow the diagonal line),
-# Scale-Location (spread should look even across the range),
-# Residuals vs Leverage (flags any single track that's disproportionately
-# influencing the model)
+# Residuals vs Fitted: slightly less flat, more uneven spread; 8696 still the biggest residual
+# Q-Q Residuals: same non-normal S-curve, unresolved by the interaction model
+# Scale-Location: mild increase in curvature, slightly more uneven variance
+# Residuals vs Leverage: leverage up (more parameters), but no dangerous outliers
 
+# check outlier - row 8696
+genre_subset[8696, c("track_name", "artists", "track_genre", "popularity",
+                     "danceability", "energy", "loudness", "valence")]
