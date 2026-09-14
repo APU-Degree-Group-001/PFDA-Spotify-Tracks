@@ -848,7 +848,15 @@ spotify_tracks_unique <- spotify_tracks_unique %>%
     collaboration_status = ifelse(artist_count > 1, "Collaboration", "Solo")
   )
 
-table(spotify_tracks_unique$collaboration_status)
+collab_table = table(spotify_tracks_unique$collaboration_status)
+collab_percent = round(prop.table(collab_table) * 100, 1)
+
+collab_summary = data.frame(
+  Status = names(collab_table),
+  Count = as.vector(collab_table),
+  Percentage = as.vector(round(prop.table(collab_table) * 100, 1))
+)
+collab_summary
 # Solo: 83265, Collaboration: 29751
 # Used in 3.2 to test whether collaboration tracks differ in popularity from solo tracks
 
