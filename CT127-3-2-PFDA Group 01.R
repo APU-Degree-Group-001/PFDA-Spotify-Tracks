@@ -560,41 +560,16 @@ spotify_tracks_unique %>%
 # Perceptual Audio Characteristics
 # Variables: danceability, energy, loudness, valence, popularity
 ###############################################################
-# 4.1 Distributions 0 danceability, energy, loudness, valence
+# 4.1 Distributions 0 danceability, loudness
 ggplot(spotify_tracks_unique, aes(x = danceability)) +
   geom_histogram(binwidth = 0.03, fill = "#DD8452", color = "white") +
   labs(title = "Distribution of Danceability", x = "Danceability", y = "Frequency")
-# TODO: shape, peak location
-# PSW:
-# - Left-skewed (negatively skewed) with majority concentrated between 0.5 and 0.75
-# - Indicating that most tracks have moderate to relatively high danceability
-
-ggplot(spotify_tracks_unique, aes(x = energy)) +
-  geom_histogram(binwidth = 0.02, fill = "#55A868", color = "white") +
-  labs(title = "Distribution of Energy", x = "Energy", y = "Frequency")
-# TODO: shape, peak location
 
 ggplot(spotify_tracks_unique, aes(x = loudness)) +
   geom_histogram(binwidth = 1, fill = "#8172B2", color = "white") +
   labs(title = "Distribution of Loudness", x = "Loudness (dB)", y = "Frequency")
-# TODO: shape, typical loudness range
 
-ggplot(spotify_tracks_unique, aes(x = valence)) +
-  geom_histogram(binwidth = 0.02, fill = "#CCB974", color = "white") +
-  labs(title = "Distribution of Valence", x = "Valence", y = "Frequency")
-# TODO: shape - skewed toward happy/sad tracks?
-
-# 4.2 Relationship with Popularity
-ggplot(spotify_tracks_unique,
-       aes(x = danceability, y = popularity)) +
-  geom_point(alpha = 0.3) +
-  geom_smooth(method = "lm") +
-  labs(
-    title = "Danceability vs Popularity",
-    x = "Danceability",
-    y = "Popularity"
-  )
-
+# 4.2 Relationship between Energy with Popularity
 ggplot(spotify_tracks_unique,
        aes(x = energy, y = popularity)) +
   geom_point(alpha = 0.3) +
@@ -604,32 +579,6 @@ ggplot(spotify_tracks_unique,
     x = "Energy",
     y = "Popularity"
   )
-
-ggplot(spotify_tracks_unique,
-       aes(x = loudness, y = popularity)) +
-  geom_point(alpha = 0.3) +
-  geom_smooth(method = "lm") +
-  labs(
-    title = "Loudness vs Popularity",
-    x = "Loudness (dB)",
-    y = "Popularity"
-  )
-
-ggplot(spotify_tracks_unique,
-       aes(x = valence, y = popularity)) +
-  geom_point(alpha = 0.3) +
-  geom_smooth(method = "lm") +
-  labs(
-    title = "Valence vs Popularity",
-    x = "Valence",
-    y = "Popularity"
-  )
-
-# 4.3 Correlation
-numeric_vars_audio <- spotify_tracks_unique %>%
-  select(danceability, energy, loudness, valence, popularity)
-cor_matrix_audio <- cor(numeric_vars_audio, use = "complete.obs")
-cor_matrix_audio
 
 
 ###############################################################
