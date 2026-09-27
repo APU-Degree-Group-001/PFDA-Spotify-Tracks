@@ -20,6 +20,7 @@ setwd("C:/Users/Chua/OneDrive/Desktop/Degree Y2 Sem 1/PFDA/PDFA_Spotify_Tracks/P
 # install.packages("dplyr")
 # install.packages("hexbin")
 # install.packages("corrplot")
+# install.packages("car")
 
 library(dplyr)
 
@@ -973,15 +974,9 @@ ggplot(genre_subset, aes(x = loudness, y = popularity)) +
        x = "Loudness", y = "Popularity")
   
 # 4.3 (Additional/Advanced) Multiple Linear Regression + VIF + Diagnostics
-vif_danceability <- 1 / (1 - summary(lm(danceability ~ energy + loudness + valence, data = genre_subset))$r.squared) # 1.301
-vif_energy       <- 1 / (1 - summary(lm(energy ~ danceability + loudness + valence, data = genre_subset))$r.squared) # 2.858
-vif_loudness     <- 1 / (1 - summary(lm(loudness ~ danceability + energy + valence, data = genre_subset))$r.squared) # 2.316
-vif_valence      <- 1 / (1 - summary(lm(valence ~ danceability + energy + loudness, data = genre_subset))$r.squared) # 1.679
-
-data.frame(
-  Feature = c("danceability", "energy", "loudness", "valence"),
-  VIF = round(c(vif_danceability, vif_energy, vif_loudness, vif_valence), 3)
-)
+library(car)
+lm_perceptual <- lm(popularity ~ danceability + energy + loudness + valence, data = genre_subset)
+vif(lm_perceptual)
 # energy and loudness has stronger link with each other, but still < 5 or 10 (safe)
 
 par(mfrow = c(2, 2)) # 2 x2 grid
